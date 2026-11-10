@@ -4,7 +4,7 @@ A standalone Godot 4.x 2D side-scrolling prototype. Tested with Godot 4.5.2. No 
 
 ## Play
 
-Import `project.godot` in Godot 4.x and press F6/F5, then Enter to launch. The project uses the Compatibility renderer and a 1280 × 720 viewport, with a 1920 × 1080 default window and canvas scaling for other modern screen sizes. Existing game-space coordinates are drawn at double scale. Authored 2560 × 720 SVG backdrops cover the hangar, overland and orbital phases.
+Import `project.godot` in Godot 4.x and press F6/F5, then Enter to launch. The project uses the Compatibility renderer and a 1280 × 720 viewport, with a 1920 × 1080 default window and canvas scaling for other modern screen sizes. Existing game-space coordinates are drawn at double scale. Authored 2560 × 720 SVG backdrops cover the hangar, overland and orbital phases. Gameplay sprites are deliberately enlarged for the new view; four high-resolution power-up sprites use distinct silhouettes for speed, shot pattern, missiles and fire rate.
 
 | Control | Action |
 | --- | --- |
@@ -33,7 +33,7 @@ Original synthesized arcade effects cover firing, damage, explosions, collection
 - `game.gd`: input, schedule, simulation, swept projectile collisions, rendering and UI.
 - `assets/flight/` holds the 30 × 16 Shuttle, its weapons and transparent effect strips. The flight renderer selects cells at native resolution. A five-pose strip banks the near wing with vertical movement.
 - `assets/hostiles/` holds the fighter, both tracked chassis, their articulated weapons and enemy ammunition.
-- `assets/backdrops/` holds high-resolution SVG backdrops for the hangar breakout, planetary flight and orbital view.
+- `assets/backdrops/` holds high-resolution SVG backdrops for the hangar breakout, planetary flight and orbital view, plus the 2 × 2 transparent power-up sprite sheet.
 - The fighter fires pink pulses, the tank recoils as it fires amber shells, and the launcher elevates a loaded rail, releases its missile and lowers to reload. Ground buildings have destructible military and civilian variants.
 - `tests.gd`: executable checks, including rapid input and a full 80-second simulated sortie.
 

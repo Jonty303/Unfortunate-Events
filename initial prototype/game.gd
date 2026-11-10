@@ -41,6 +41,7 @@ const BACKDROPS := {
 	"overland": preload("res://assets/backdrops/overland.svg"),
 	"orbit": preload("res://assets/backdrops/orbit.svg"),
 }
+const POWERUP_SHEET := preload("res://assets/backdrops/powerups.png")
 const SIZE := Vector2(640, 360)
 const OUTPUT_SIZE := Vector2(1280, 720)
 const CANNON_INTERVAL := 0.18
@@ -571,9 +572,22 @@ func draw_enemy(e: Dictionary) -> void:
 func flight_sprite(kind: String, pos: Vector2, frame: int = 0, tint: Color = Color.WHITE) -> void:
 	var tex: Texture2D = FLIGHT[kind]
 	var cells: int = FRAME_COUNTS.get(kind, 1)
-	var size := Vector2(tex.get_width() / cells, tex.get_height())
-	draw_texture_rect_region(tex, Rect2((pos - size * 0.5).round(), size),
-			Rect2(Vector2(frame % cells * size.x, 0), size), tint)
+	# Gameplay sprites were authored for the original small viewport. Give them
+	# deliberate screen presence in the larger 1280 x 720 presentation.
+	var source_size := Vector2(tex.get_width() / cells, tex.get_height())
+	var draw_size := source_size * 1.5
+	draw_texture_rect_region(tex, Rect2((pos - draw_size * 0.5).round(), draw_size),
+			Rect2(Vector2(frame % cells * source_size.x, 0), source_size), tint)
+
+func draw_powerup(kind: String, pos: Vector2) -> void:
+	var index := ["S", "C", "M", "F"].find(kind)
+	if index < 0:
+		return
+	var cell := Vector2(POWERUP_SHEET.get_width() / 2.0, POWERUP_SHEET.get_height() / 2.0)
+	var source := Rect2(Vector2((index % 2) * cell.x, floori(float(index) / 2.0) * cell.y), cell)
+	var size := Vector2(38, 38)
+	draw_circle(pos, 22, Color(0.12, 0.19, 0.28, 0.7))
+	draw_texture_rect_region(POWERUP_SHEET, Rect2(pos - size * 0.5, size), source)
 
 func label_at(words: String, pos: Vector2, size: int = 12, color: Color = PAPER) -> void:
 	draw_string(font, pos, words, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
@@ -585,11 +599,7 @@ func _draw() -> void:
 	draw_texture_rect_region(backdrop, Rect2(Vector2.ZERO, OUTPUT_SIZE), Rect2(Vector2(offset, 0), OUTPUT_SIZE))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2(2, 2))
 	for item in pickups:
-		var pos: Vector2 = item.p.round()
-		var color := SPEED_GREEN if item.kind == "S" else (CYAN if item.kind == "C" else ORANGE)
-		draw_rect(Rect2(pos - Vector2(10, 10), Vector2(20, 20)), Color("0c1728"))
-		draw_rect(Rect2(pos - Vector2(10, 10), Vector2(20, 20)), color, false, 2)
-		label_at(item.kind, pos + Vector2(-5, 5), 14, color)
+		draw_powerup(item.kind, item.p.round())
 	for building in structures:
 		draw_structure(building)
 	for e in enemies:
@@ -620,7 +630,7 @@ func _draw() -> void:
 		flight_sprite(fx.kind, pos, int(fx.age * EFFECT_FPS[fx.kind]))
 	for p in sparks:
 		draw_rect(Rect2(p.p.round(), Vector2(2, 2)), p.color)
-	draw_rect(Rect2(0, 0, 640, 29), Color("0c1728"))
+	draw_rect(Rect2(0, 0, 640, 55), Color("0c1728"))
 	label_at("UNFORTUNATE EVENTS", Vector2(12, 19), 13, CYAN)
 	if paused:
 		label_at("PAUSED", Vector2(161, 18), 10, ORANGE)
@@ -628,10 +638,10 @@ func _draw() -> void:
 	label_at("SCORE %06d" % score, Vector2(470, 43), 10, CYAN)
 	for i in range(5):
 		draw_rect(Rect2(248 + i * 11, 10, 8, 10), CYAN if i < hull else Color("334052"))
-	label_at("MISSILE POWER", Vector2(320, 18), 10, ORANGE)
-	draw_rect(Rect2(402, 11, 48, 8), Color("334052"))
-	draw_rect(Rect2(402, 11, 48 * missile_power / 100.0, 8), ORANGE)
-	label_at("SPACE" if elapsed < LAND_START else "OVERLAND", Vector2(448, 18), 10)
+	label_at("MISSILE PWR", Vector2(315, 18), 10, ORANGE)
+	draw_rect(Rect2(383, 11, 42, 8), Color("334052"))
+	draw_rect(Rect2(383, 11, 42 * missile_power / 100.0, 8), ORANGE)
+	label_at("SPACE" if elapsed < LAND_START else "OVERLAND", Vector2(435, 18), 10)
 	label_at("%02d / 80" % mini(int(elapsed), 80), Vector2(560, 18), 10)
 	draw_rect(Rect2(0, 28, 640 * minf(elapsed / DURATION, 1), 1), CYAN)
 	label_at("PATTERN %d   RATE %d   ROCKET %d   DRIVE +%d" % [cannon_level, cannon_rate_level, missile_level, speed_boosts], Vector2(12, 43), 10, CYAN)
@@ -660,4 +670,4 @@ func _draw() -> void:
 		label_at("S SPEED   C PATTERN   F FIRE RATE   M MISSILE", Vector2(81, 237), 11, ORANGE)
 		label_at("ENTER / PAD A TO LAUNCH" if state == "title" else "R / PAD Y TO RESTART", Vector2(81, 261), 13, CYAN)
 	var pause_action := "RESUME" if paused else "PAUSE"
-	label_at("P / ESC / START  %s    R  RESTART    M  SOUND %s" % [pause_action, "OFF" if muted else "ON"], Vector2(12, 352), 10, Color("9babba"))
+	label_at("P / ESC / START  %s    R  RESTART    M  SOUND %s" % [pause_action, "OFF" if muted else "ON"], Vector2(12, 346), 10, Color("9babba"))
