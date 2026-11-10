@@ -592,6 +592,12 @@ func draw_powerup(kind: String, pos: Vector2) -> void:
 func label_at(words: String, pos: Vector2, size: int = 12, color: Color = PAPER) -> void:
 	draw_string(font, pos, words, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
+func hud_rect(rect: Rect2, color: Color) -> void:
+	draw_rect(Rect2(rect.position * 2.0, rect.size * 2.0), color)
+
+func hud_label(words: String, pos: Vector2, size: int = 12, color: Color = PAPER) -> void:
+	draw_string(font, pos * 2.0, words, HORIZONTAL_ALIGNMENT_LEFT, -1, size * 2, color)
+
 func _draw() -> void:
 	var phase: String = "hangar" if elapsed < 7.0 else ("overland" if elapsed < 68.0 else "orbit")
 	var backdrop: Texture2D = BACKDROPS[phase]
@@ -630,30 +636,31 @@ func _draw() -> void:
 		flight_sprite(fx.kind, pos, int(fx.age * EFFECT_FPS[fx.kind]))
 	for p in sparks:
 		draw_rect(Rect2(p.p.round(), Vector2(2, 2)), p.color)
-	draw_rect(Rect2(0, 0, 640, 55), Color("0c1728"))
-	label_at("UNFORTUNATE EVENTS", Vector2(12, 19), 13, CYAN)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	draw_rect(Rect2(0, 0, OUTPUT_SIZE.x, 110), Color("0c1728"))
+	hud_label("UNFORTUNATE EVENTS", Vector2(12, 19), 13, CYAN)
 	if paused:
-		label_at("PAUSED", Vector2(161, 18), 10, ORANGE)
-	label_at("HULL", Vector2(215, 18), 10)
-	label_at("SCORE %06d" % score, Vector2(470, 43), 10, CYAN)
+		hud_label("PAUSED", Vector2(161, 18), 10, ORANGE)
+	hud_label("HULL", Vector2(215, 18), 10)
+	hud_label("SCORE %06d" % score, Vector2(470, 43), 10, CYAN)
 	for i in range(5):
-		draw_rect(Rect2(248 + i * 11, 10, 8, 10), CYAN if i < hull else Color("334052"))
-	label_at("MISSILE PWR", Vector2(315, 18), 10, ORANGE)
-	draw_rect(Rect2(383, 11, 42, 8), Color("334052"))
-	draw_rect(Rect2(383, 11, 42 * missile_power / 100.0, 8), ORANGE)
-	label_at("SPACE" if elapsed < LAND_START else "OVERLAND", Vector2(435, 18), 10)
-	label_at("%02d / 80" % mini(int(elapsed), 80), Vector2(560, 18), 10)
-	draw_rect(Rect2(0, 28, 640 * minf(elapsed / DURATION, 1), 1), CYAN)
-	label_at("PATTERN %d   RATE %d   ROCKET %d   DRIVE +%d" % [cannon_level, cannon_rate_level, missile_level, speed_boosts], Vector2(12, 43), 10, CYAN)
+		hud_rect(Rect2(248 + i * 11, 10, 8, 10), CYAN if i < hull else Color("334052"))
+	hud_label("MISSILE PWR", Vector2(315, 18), 10, ORANGE)
+	hud_rect(Rect2(383, 11, 42, 8), Color("334052"))
+	hud_rect(Rect2(383, 11, 42 * missile_power / 100.0, 8), ORANGE)
+	hud_label("SPACE" if elapsed < LAND_START else "OVERLAND", Vector2(435, 18), 10)
+	hud_label("%02d / 80" % mini(int(elapsed), 80), Vector2(560, 18), 10)
+	hud_rect(Rect2(0, 28, 640 * minf(elapsed / DURATION, 1), 1), CYAN)
+	hud_label("PATTERN %d   RATE %d   ROCKET %d   DRIVE +%d" % [cannon_level, cannon_rate_level, missile_level, speed_boosts], Vector2(12, 43), 10, CYAN)
 	if notice_time > 0:
-		label_at(notice, Vector2(180, 77), 12, CYAN)
+		hud_label(notice, Vector2(180, 77), 12, CYAN)
 	if state == "playing" and elapsed > 32 and elapsed < 37:
-		label_at("ENTERING LOW ATMOSPHERE", Vector2(219, 57), 12, ORANGE)
+		hud_label("ENTERING LOW ATMOSPHERE", Vector2(219, 57), 12, ORANGE)
 	if state == "playing" and elapsed < 3:
-		label_at("ENGINES RECONFIGURING. HOLD TO FIRE.", Vector2(188, 280), 12, CYAN)
+		hud_label("ENGINES RECONFIGURING. HOLD TO FIRE.", Vector2(188, 280), 12, CYAN)
 	if state != "playing":
-		draw_rect(Rect2(55, 91, 530, 186), Color("0c1728"))
-		draw_rect(Rect2(55, 91, 3, 186), CYAN)
+		hud_rect(Rect2(55, 91, 530, 186), Color("0c1728"))
+		hud_rect(Rect2(55, 91, 3, 186), CYAN)
 		var title := "UNFORTUNATE EVENTS"
 		var subtitle := "A SMALL SHIP. A VERY BAD ROUTE."
 		if state == "destroyed":
@@ -662,12 +669,12 @@ func _draw() -> void:
 		elif state == "complete":
 			title = "CLEAR OF THE FRONT"
 			subtitle = "SORTIE COMPLETE / %d HOSTILES DESTROYED" % kills
-		label_at(title, Vector2(80, 128), 25, CYAN)
-		label_at(subtitle, Vector2(81, 152), 12, ORANGE)
-		label_at("WASD / ARROWS / LEFT STICK / D-PAD   MOVE", Vector2(81, 180))
-		label_at("HOLD Z / SPACE / LMB / PAD A   CANNON", Vector2(81, 199))
-		label_at("X / RMB / PAD B OR RB    POWERED GROUND MISSILES", Vector2(81, 218))
-		label_at("S SPEED   C PATTERN   F FIRE RATE   M MISSILE", Vector2(81, 237), 11, ORANGE)
-		label_at("ENTER / PAD A TO LAUNCH" if state == "title" else "R / PAD Y TO RESTART", Vector2(81, 261), 13, CYAN)
+		hud_label(title, Vector2(80, 128), 25, CYAN)
+		hud_label(subtitle, Vector2(81, 152), 12, ORANGE)
+		hud_label("WASD / ARROWS / LEFT STICK / D-PAD   MOVE", Vector2(81, 180))
+		hud_label("HOLD Z / SPACE / LMB / PAD A   CANNON", Vector2(81, 199))
+		hud_label("X / RMB / PAD B OR RB    POWERED GROUND MISSILES", Vector2(81, 218))
+		hud_label("S SPEED   C PATTERN   F FIRE RATE   M MISSILE", Vector2(81, 237), 11, ORANGE)
+		hud_label("ENTER / PAD A TO LAUNCH" if state == "title" else "R / PAD Y TO RESTART", Vector2(81, 261), 13, CYAN)
 	var pause_action := "RESUME" if paused else "PAUSE"
-	label_at("P / ESC / START  %s    R  RESTART    M  SOUND %s" % [pause_action, "OFF" if muted else "ON"], Vector2(12, 346), 10, Color("9babba"))
+	hud_label("P / ESC / START  %s    R  RESTART    M  SOUND %s" % [pause_action, "OFF" if muted else "ON"], Vector2(12, 346), 10, Color("9babba"))
