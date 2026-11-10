@@ -8,7 +8,7 @@ The project began as a small, enjoyable diversion from Gauntlands, with room to 
 
 ## Prototype decisions
 
-Responsive movement on both axes; normalized diagonal speed. The projectile cannon fires once per button press with no imposed cooldown, including multiple presses received within one engine frame. A separate unguided missile travels straight forward. Basic collision, hull damage, enemy attacks, destruction, completion and immediate restart form the playable loop.
+Responsive movement on both axes; normalized diagonal speed. The projectile cannon fires once per button press with no imposed cooldown, including multiple presses received within one engine frame. A separate unguided rocket launches forward and downward from the belly rail. Basic collision, hull damage, enemy attacks, destruction, completion and immediate restart form the playable loop.
 
 The first version deliberately omitted pickups and upgrades. A subsequent request added simple cannon and missile powerups to explore their feel, along with arcade sounds and joypad support. This supersedes the original no-powerups constraint for the current prototype. There is no persistent progression or between-mission gameplay.
 
@@ -16,7 +16,7 @@ The first version deliberately omitted pickups and upgrades. A subsequent reques
 
 An 80-second sortie contains seven space formations, an atmosphere transition beginning at 32 seconds, and a ground section alternating tanks and missile launchers alongside airborne enemies. The ship has five hull points and brief protection after a hit. Ground contact causes damage. Ground vehicles can be attacked by flying low and firing forward.
 
-The view is 640 by 360 pixels, enlarged with integer scaling. Original pixel patterns form the ships and vehicles, with simple geometric terrain, stars, projectiles and effects. The atmosphere-entry message was specifically well received by the user and is worth preserving as part of the transition's character.
+The view is 640 by 360 pixels, enlarged with integer scaling. The player pilots a 30 × 16 antique Space Shuttle orbiter with patched tiles, oxidised repair plates and a bolt-on rocket rail. Its provenance is open. It could be a Culture citizen’s restoration project, or something a bored Mind keeps airworthy for its own amusement. The shield briefly showing through on impact hints at newer hardware inside. The atmosphere-entry message was specifically well received by the user and is worth preserving as part of the transition's character.
 
 ## Weapon experiments
 
@@ -25,7 +25,7 @@ The view is 640 by 360 pixels, enlarged with integer scaling. Original pixel pat
 | Cannon | Single shot | Twin parallel shots | Three-way volley |
 | Missile | Single, four damage | Twin, four damage each | Twin, six damage each, faster reload |
 
-C and M capsules alternate, beginning six seconds into the sortie and then every eight seconds until the final stretch. They drift in from the right near the player's altitude, constrained away from the ground. Fly into a capsule to upgrade its weapon. Levels cap at three, survive damage, and reset each run. Each cannon press produces one volley at every level; holding the button does not auto-fire. Missile reload is 0.45 seconds, reducing to 0.28 seconds at level three. Missiles remain unguided.
+C and M capsules alternate, beginning six seconds into the sortie and then every eight seconds until the final stretch. They drift in from the right near the player's altitude, constrained away from the ground. Fly into a capsule to upgrade its weapon. Levels cap at three, survive damage, and reset each run. Each cannon press produces one volley at every level; holding the button does not auto-fire. Missile reload is 0.45 seconds, reducing to 0.28 seconds at level three. The Shuttle starts at 130 px/s. Three S pickups raise movement to 152, 174 and 196 px/s for the sortie. Both rocket sizes arc down toward ground targets and burst on terrain contact.
 
 ## Input and sound
 

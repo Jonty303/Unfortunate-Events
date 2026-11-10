@@ -5,10 +5,10 @@
 
 ## Design boundaries
 
-- **Core game:** 2D horizontal, right-facing, Nemesis/Gradius-inspired scrolling shooter. One playable ship, one initial level, rapid single-shot-per-press forward cannon, forward unguided missile, movement in two axes.
+- **Core game:** 2D horizontal, right-facing, Nemesis/Gradius-inspired scrolling shooter. One playable ship, one initial level, rapid single-shot-per-press forward cannon, belly-mounted unguided ground-attack rocket, movement in two axes.
 - **Platform:** PC-first prototype, with landscape phone/touch control implications worth considering later. Portrait vertical-scrolling was discussed, but **horizontal remains the chosen direction**.
 - **Avoid scope inflation:** no ship transformations, flight modes, exploration, alternate camera configurations, or persistent upgrade framework required for the initial mechanical milestone.
-- **Current code vs future design:** the existing playable experimental slice already includes simple in-level weapon pickups, as documented in `Design overview.md`. This new document describes the *intended opening mission* and future progression rules; it does not claim the expanded story, bosses or progression have been implemented.
+- **Current code vs future design:** the existing playable experimental slice already includes in-level speed and weapon pickups, as documented in `Design overview.md`. This new document describes the *intended opening mission* and future progression rules; it does not claim the expanded story, bosses or progression have been implemented.
 
 ## Opening mission: seven story beats
 
@@ -72,7 +72,7 @@ The shorter original user wording about hope of not exploding during reconfigura
 - **During missions:** power-ups are **normally temporary**, expiring at mission conclusion.
 - **Exception:** scripted events may grant an upgrade that stays permanently for the run.
 - Potential upgrades include weapon, missile, shield, propulsion or manoeuvrability improvements, but **no specific upgrade tree has been selected**.
-- The Mind can narrate modifications in character. Do not confuse these future rules with the existing experimental C/M pickup implementation.
+- The Mind can narrate modifications in character. Do not confuse these future rules with the existing experimental S/C/M pickup implementation.
 
 ## Parking lot — explicitly not agreed for implementation yet
 
