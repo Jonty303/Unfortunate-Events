@@ -43,9 +43,9 @@ const SPRITE_SIZE := {
 	"tank_barrel": Vector2(18, 6),
 	"launch_rail": Vector2(19, 8),
 	"sam": Vector2(18, 7),
-	"tank_shell": Vector2(10, 5),
-	"fighter_pulse": Vector2(12, 6),
-	"cannon_round": Vector2(13, 5),
+	"tank_shell": Vector2(15, 7),
+	"fighter_pulse": Vector2(16, 8),
+	"cannon_round": Vector2(18, 7),
 	"rocket": Vector2(17, 7),
 	"heavy_rocket": Vector2(20, 8),
 	"main_drive": Vector2(17, 7),
@@ -61,6 +61,16 @@ const SPRITE_SIZE := {
 # Horizontal strips use equal-width cells. Rates are in frames per second.
 const FRAME_COUNTS := {"shuttle_bank": 5, "main_drive": 6, "rocket_drive": 4, "muzzle_flash": 4, "impact": 6, "small_explosion": 9, "debris_cloud": 9}
 const EFFECT_FPS := {"muzzle_flash": 48.0, "impact": 28.0, "small_explosion": 22.0, "debris_cloud": 14.0}
+const PROPERTY_SPEED := 49.0
+const BLAST_RADIUS := 38.0
+const LAND_ART := {
+ "mountains": preload("res://assets/terrain/mountains.webp"),
+ "woods": preload("res://assets/terrain/woods.webp"),
+ "property": preload("res://assets/terrain/property.webp"),
+ "road": preload("res://assets/terrain/road.webp"),
+}
+var fragments: Array[Dictionary] = []
+var scars: Array[Dictionary] = []
 const BACKDROPS := {
 	"hangar": preload("res://assets/backdrops/hangar.svg"),
 	"overland": preload("res://assets/backdrops/overland.svg"),
@@ -241,6 +251,8 @@ func start() -> void:
 	paused = false
 	notice = "MIND: ENGINES RECONFIGURING. WE CANNOT LEAVE ORBIT YET."
 	notice_time = 4.0
+	fragments.clear()
+	scars.clear()
 	enemies.clear()
 	structures.clear()
 	shots.clear()
@@ -390,14 +402,15 @@ func step(delta: float, direction: Vector2) -> void:
 		spawn_enemy(ev.kind, Vector2(665, ev.y))
 		next_event += 1
 	for building in structures:
-		building.p.x -= SCROLL * delta
-		building.p.y = ground_y()
+		building.p.x -= PROPERTY_SPEED * delta
+		building.p.y = ground_y() - 20
 		building.flash = maxf(0.0, building.flash - delta)
 	for e in enemies:
 		e.age += delta
 		e.flash = maxf(0, e.flash - delta)
 		e.p.x -= (94.0 if e.kind == "fighter" else SCROLL) * delta
 		if e.kind == "fighter": e.p.y = e.base_y + sin(e.age * 2.8) * 22.0
+		if e.kind != "fighter": e.p.y = ground - (9.5 if e.kind == "tank" else 10.5)
 		update_enemy_weapon(e, delta)
 		if enemy_box(e).intersects(Rect2(player - Vector2(10, 5), Vector2(20, 10))):
 			hurt()
@@ -412,12 +425,14 @@ func step(delta: float, direction: Vector2) -> void:
 		var spent := false
 		if s.friendly:
 			for building in structures:
+				if building.hp <= 0: continue
 				var building_box := Rect2(building.p + Vector2(-22, -31), Vector2(44, 31))
 				if segment_hits(previous, s.p, building_box.grow(3 if s.missile else 1)):
-					building.hp -= s.damage
+					if s.missile:
+						blast(s.p, s.damage)
+					else:
+						building.hp -= s.damage
 					building.flash = 0.12
-					if building.hp <= 0:
-						structure_destroyed(building)
 					spent = true
 					break
 			if spent:
@@ -427,7 +442,10 @@ func step(delta: float, direction: Vector2) -> void:
 				if e.hp <= 0: continue
 				# Swept segment avoids tunnelling even at low frame rates.
 				if segment_hits(previous, s.p, enemy_box(e).grow(3 if s.missile else 1)):
-					e.hp -= s.damage
+					if s.missile:
+						blast(s.p, s.damage)
+					else:
+						e.hp -= s.damage
 					e.flash = 0.12
 					if e.hp > 0:
 						flight_effect("small_explosion" if s.missile else "impact", e.p)
@@ -440,18 +458,21 @@ func step(delta: float, direction: Vector2) -> void:
 		if not spent and s.friendly and s.missile and ground < SIZE.y and s.p.y >= ground:
 			var fraction := clampf((ground - previous.y) / maxf(0.001, s.p.y - previous.y), 0, 1)
 			var impact := previous.lerp(s.p, fraction)
-			flight_effect("debris_cloud", impact)
-			flight_effect("small_explosion", impact)
+			blast(impact, s.damage)
 			spent = true
 		if spent or s.p.x < -30 or s.p.x > 680 or s.p.y < 28 or s.p.y > ground:
 			shots.remove_at(i)
+	step_fragments(delta)
 	for i in range(structures.size() - 1, -1, -1):
+		if structures[i].hp <= 0:
+			structure_destroyed(structures[i])
 		if structures[i].hp <= 0 or structures[i].p.x < -40:
 			structures.remove_at(i)
 	for i in range(enemies.size() - 1, -1, -1):
 		if enemies[i].hp <= 0:
 			flight_effect("debris_cloud", enemies[i].p)
 			flight_effect("small_explosion", enemies[i].p)
+			shed_fragments(enemies[i].kind, enemies[i].p)
 			kills += 1
 			sound_effect("boom")
 			enemies.remove_at(i)
@@ -526,7 +547,67 @@ func segment_hits(a: Vector2, b: Vector2, box: Rect2) -> bool:
 			if lo > hi: return false
 	return true
 
+func building_bounds(b: Dictionary) -> Rect2:
+	return Rect2(b.p - Vector2(22, 31), Vector2(44, 31))
+
+func blast(at: Vector2, damage: int) -> void:
+	flight_effect("small_explosion", at)
+	for b in structures:
+		var box := building_bounds(b)
+		if at.distance_to(at.clamp(box.position, box.end)) <= BLAST_RADIUS:
+			b.hp -= damage
+			b.flash = 0.12
+	for e in enemies:
+		var box := enemy_box(e)
+		if at.distance_to(at.clamp(box.position, box.end)) <= BLAST_RADIUS:
+			e.hp -= damage
+			e.flash = 0.12
+	for lane in ["property", "road"]:
+		var y := ground_y() - (20 if lane == "property" else 0)
+		if absf(at.y - y) <= BLAST_RADIUS:
+			scars.append({"x":at.x, "lane":lane})
+			flight_effect("debris_cloud", Vector2(at.x, y))
+
+func shed_fragments(kind: String, at: Vector2) -> void:
+	var tex: Texture2D = FLIGHT[kind]
+	for n in range(6):
+		if fragments.size() >= 96: break
+		var chip := Vector2(12, 9)
+		var origin := Vector2(tex.get_width(), tex.get_height()) * Vector2(rng.randf_range(0.32,0.62),rng.randf_range(0.40,0.55))
+		fragments.append({"p":at,"v":Vector2(rng.randf_range(-145,130),rng.randf_range(-210,-70)), "life":1.8, "texture":tex, "region":Rect2(origin,chip), "spin":rng.randf_range(-7,7)})
+
+func step_fragments(delta: float) -> void:
+	for j in range(scars.size()-1,-1,-1):
+		scars[j].x -= (PROPERTY_SPEED if scars[j].lane == "property" else SCROLL) * delta
+		if scars[j].x < -20: scars.remove_at(j)
+	for j in range(fragments.size()-1,-1,-1):
+		var f := fragments[j]
+		var previous: Vector2 = f.p
+		f.v.y += 185 * delta
+		f.p += f.v * delta
+		f.life -= delta
+		var hit := false
+		for b in structures:
+			if b.hp > 0 and segment_hits(previous, f.p, building_bounds(b)):
+				b.hp -= 1
+				b.flash = 0.12
+				hit = true
+				break
+		if not hit:
+			for e in enemies:
+				if e.hp > 0 and segment_hits(previous, f.p, enemy_box(e)):
+					e.hp -= 1
+					e.flash = 0.12
+					hit = true
+					break
+		if not hit and segment_hits(previous, f.p, Rect2(player-Vector2(10,5),Vector2(20,10))):
+			hurt()
+			hit = true
+		if hit: flight_effect("impact", f.p)
+		if hit or f.life <= 0 or f.p.y > ground_y(): fragments.remove_at(j)
+
 func structure_destroyed(building: Dictionary) -> void:
+	shed_fragments(building.kind, building.p - Vector2(0, 16))
 	flight_effect("debris_cloud", building.p + Vector2(0, -18))
 	flight_effect("small_explosion", building.p + Vector2(0, -18))
 	if building.kind == "military":
@@ -613,11 +694,33 @@ func hud_rect(rect: Rect2, color: Color) -> void:
 func hud_label(words: String, pos: Vector2, size: int = 12, color: Color = PAPER) -> void:
 	draw_string(font, pos, words, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
+func strip(kind: String, y: float, height: float, width: float, speed: float) -> void:
+	var distance := elapsed * speed
+	var tile := floori(distance / width)
+	var x := -fposmod(distance, width)
+	while x < SIZE.x:
+		var rect := Rect2(x, y, width + 0.25, height)
+		if tile % 2 == 1:
+			rect.position.x += rect.size.x
+			rect.size.x *= -1
+		draw_texture_rect(LAND_ART[kind], rect, false)
+		tile += 1
+		x += width
+
 func _draw() -> void:
 	var phase: String = "hangar" if elapsed < 7.0 else ("overland" if elapsed < 68.0 else "orbit")
-	var backdrop: Texture2D = BACKDROPS[phase]
-	var offset := fposmod(elapsed * (24.0 if phase == "hangar" else 12.0), 1280.0)
-	draw_texture_rect_region(backdrop, Rect2(Vector2.ZERO, SIZE), Rect2(Vector2(offset, 0), OUTPUT_SIZE))
+	if phase == "overland":
+		strip("mountains", 0, 320, 850, 5.0)
+		strip("woods", ground_y()-104, 100, 650, 23.0)
+		strip("property", ground_y()-20, 62, 520, PROPERTY_SPEED)
+		strip("road", ground_y(), 65, 380, SCROLL)
+		for mark in scars:
+			var at := Vector2(mark.x, ground_y() + (2 if mark.lane == "road" else -18))
+			draw_line(at-Vector2(9,0), at+Vector2(9,0), Color("46372f"), 3, true)
+	else:
+		var backdrop: Texture2D = BACKDROPS[phase]
+		var offset := fposmod(elapsed * 18.0, 1280.0)
+		draw_texture_rect_region(backdrop, Rect2(Vector2.ZERO, SIZE), Rect2(Vector2(offset,0), OUTPUT_SIZE))
 	for item in pickups:
 		draw_powerup(item.kind, item.p.round())
 	for building in structures:
@@ -626,6 +729,10 @@ func _draw() -> void:
 		draw_enemy(e)
 	for shot in shots:
 		draw_set_transform(shot.p.round(), shot.v.angle())
+		if not shot.missile:
+			var colour := Color("76faff") if shot.friendly else Color("ff668c")
+			draw_line(Vector2(-11,0), Vector2(4,0), Color("31273d"), 5, true)
+			draw_line(Vector2(-11,0), Vector2(4,0), colour, 3, true)
 		if shot.friendly and shot.missile:
 			flight_sprite("rocket_drive", Vector2(-11, 0), int(elapsed * 20))
 			flight_sprite("heavy_rocket" if shot.damage > 4 else "rocket", Vector2.ZERO)
@@ -642,6 +749,10 @@ func _draw() -> void:
 		flight_sprite("main_drive", player + Vector2(-20, -1), cycle)
 		flight_sprite("main_drive", player + Vector2(-20, 2), cycle + 2)
 		flight_sprite("shuttle_bank", player, roundi(bank * 2) + 2, Color.WHITE)
+	for f in fragments:
+		draw_set_transform(f.p, f.spin * f.life)
+		draw_texture_rect_region(f.texture, Rect2(-3,-2,6,4), f.region)
+		draw_set_transform(Vector2.ZERO)
 	for fx in effects:
 		var pos: Vector2 = fx.p
 		if fx.kind == "muzzle_flash":
