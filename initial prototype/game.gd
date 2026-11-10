@@ -13,25 +13,50 @@ const RAIL_LOAD := Vector2(5, -5)
 const TANK_RELOAD := 2.8
 const SAM_RELOAD := 2.0
 const FLIGHT := {
-	"shuttle_bank": preload("res://assets/flight/shuttle_bank.png"),
-	"main_drive": preload("res://assets/flight/main_drive.png"),
-	"cannon_round": preload("res://assets/flight/cannon_round.png"),
-	"fighter": preload("res://assets/hostiles/fighter.png"),
-	"tank": preload("res://assets/hostiles/tank.png"),
-	"launcher": preload("res://assets/hostiles/launcher.png"),
-	"tank_barrel": preload("res://assets/hostiles/tank_barrel.png"),
-	"launch_rail": preload("res://assets/hostiles/launch_rail.png"),
-	"sam": preload("res://assets/hostiles/sam.png"),
-	"tank_shell": preload("res://assets/hostiles/tank_shell.png"),
-	"fighter_pulse": preload("res://assets/hostiles/fighter_pulse.png"),
-	"exhaust": preload("res://assets/hostiles/exhaust.png"),
-	"rocket": preload("res://assets/flight/rocket.png"),
-	"heavy_rocket": preload("res://assets/flight/heavy_rocket.png"),
-	"rocket_drive": preload("res://assets/flight/rocket_drive.png"),
-	"muzzle_flash": preload("res://assets/flight/muzzle_flash.png"),
-	"impact": preload("res://assets/flight/impact.png"),
-	"small_explosion": preload("res://assets/flight/small_explosion.png"),
-	"debris_cloud": preload("res://assets/flight/debris_cloud.png"),
+	"shuttle_bank": preload("res://assets/hd/shuttle_bank.webp"),
+	"fighter": preload("res://assets/hd/fighter.webp"),
+	"tank": preload("res://assets/hd/tank.webp"),
+	"launcher": preload("res://assets/hd/launcher.webp"),
+	"tank_barrel": preload("res://assets/hd/tank_barrel.webp"),
+	"launch_rail": preload("res://assets/hd/launch_rail.webp"),
+	"sam": preload("res://assets/hd/sam.webp"),
+	"tank_shell": preload("res://assets/hd/tank_shell.webp"),
+	"fighter_pulse": preload("res://assets/hd/fighter_pulse.webp"),
+	"cannon_round": preload("res://assets/hd/cannon_round.webp"),
+	"rocket": preload("res://assets/hd/rocket.webp"),
+	"heavy_rocket": preload("res://assets/hd/heavy_rocket.webp"),
+	"main_drive": preload("res://assets/hd/main_drive.webp"),
+	"rocket_drive": preload("res://assets/hd/rocket_drive.webp"),
+	"muzzle_flash": preload("res://assets/hd/muzzle_flash.webp"),
+	"small_explosion": preload("res://assets/hd/small_explosion.webp"),
+	"exhaust": preload("res://assets/hd/exhaust.webp"),
+	"impact": preload("res://assets/hd/impact.webp"),
+	"debris_cloud": preload("res://assets/hd/debris_cloud.webp"),
+	"military": preload("res://assets/hd/military.webp"),
+	"civilian": preload("res://assets/hd/civilian.webp"),
+}
+const SPRITE_SIZE := {
+	"shuttle_bank": Vector2(46, 24),
+	"fighter": Vector2(39, 18),
+	"tank": Vector2(39, 15),
+	"launcher": Vector2(39, 15),
+	"tank_barrel": Vector2(18, 6),
+	"launch_rail": Vector2(19, 8),
+	"sam": Vector2(18, 7),
+	"tank_shell": Vector2(10, 5),
+	"fighter_pulse": Vector2(12, 6),
+	"cannon_round": Vector2(13, 5),
+	"rocket": Vector2(17, 7),
+	"heavy_rocket": Vector2(20, 8),
+	"main_drive": Vector2(17, 7),
+	"rocket_drive": Vector2(11, 5),
+	"muzzle_flash": Vector2(13, 8),
+	"small_explosion": Vector2(32, 32),
+	"exhaust": Vector2(10, 5),
+	"impact": Vector2(14, 14),
+	"debris_cloud": Vector2(32, 32),
+	"military": Vector2(45, 31),
+	"civilian": Vector2(45, 31),
 }
 # Horizontal strips use equal-width cells. Rates are in frames per second.
 const FRAME_COUNTS := {"shuttle_bank": 5, "main_drive": 6, "rocket_drive": 4, "muzzle_flash": 4, "impact": 6, "small_explosion": 9, "debris_cloud": 9}
@@ -160,7 +185,7 @@ func collect_pickup(kind: String) -> void:
 
 func _ready() -> void:
 	font = ThemeDB.fallback_font
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	rng.seed = 61724
 	for i in range(95):
 		stars.append(Vector3(rng.randf_range(0, 640), rng.randf_range(28, 325), rng.randf_range(0.2, 1.0)))
@@ -351,11 +376,11 @@ func step(delta: float, direction: Vector2) -> void:
 	var speed := START_SPEED + SPEED_INCREMENT * speed_boosts
 	var old_y := player.y
 	player += direction.limit_length() * speed * delta
-	player.x = clampf(player.x, 20, 614)
-	player.y = clampf(player.y, 42, 330)
+	player.x = clampf(player.x, 23, SIZE.x - 23)
+	player.y = clampf(player.y, 67, SIZE.y - 12)
 	var ground := ground_y()
-	if ground < 360 and player.y + 7 > ground:
-		player.y = ground - 8
+	if ground < 360 and player.y + 12 > ground:
+		player.y = ground - 12
 		hurt()
 	if delta > 0:
 		var vertical_motion := clampf((player.y - old_y) / (speed * delta), -1.0, 1.0)
@@ -387,7 +412,7 @@ func step(delta: float, direction: Vector2) -> void:
 		var spent := false
 		if s.friendly:
 			for building in structures:
-				var building_box := Rect2(building.p + Vector2(-18, -42), Vector2(36, 42))
+				var building_box := Rect2(building.p + Vector2(-22, -31), Vector2(44, 31))
 				if segment_hits(previous, s.p, building_box.grow(3 if s.missile else 1)):
 					building.hp -= s.damage
 					building.flash = 0.12
@@ -532,17 +557,7 @@ func burst(pos: Vector2, color: Color, count: int) -> void:
 func draw_structure(building: Dictionary) -> void:
 	var p: Vector2 = building.p.round()
 	var tint := Color("ffcc89") if building.flash > 0 else Color.WHITE
-	var military: bool = building.kind == "military"
-	var main := Color("465461") if military else Color("776b5b")
-	var roof := Color("9a7049") if military else Color("bd9670")
-	draw_rect(Rect2(p + Vector2(-18, -40), Vector2(36, 40)), main * tint)
-	draw_rect(Rect2(p + Vector2(-22, -43), Vector2(44, 7)), roof * tint)
-	draw_rect(Rect2(p + Vector2(-14, -33), Vector2(9, 10)), Color("e5c785") * tint)
-	draw_rect(Rect2(p + Vector2(3, -33), Vector2(8, 10)), Color("e5c785") * tint)
-	draw_rect(Rect2(p + Vector2(-4, -16), Vector2(9, 16)), Color("292e32") * tint)
-	if military:
-		draw_rect(Rect2(p + Vector2(10, -49), Vector2(3, 8)), Color("b94e3c") * tint)
-		draw_rect(Rect2(p + Vector2(-15, -3), Vector2(30, 3)), Color("d39a59") * tint)
+	flight_sprite(building.kind, p - Vector2(0, 15.5), 0, tint)
 
 func draw_enemy(e: Dictionary) -> void:
 	var tint := Color(3, 3, 3) if e.flash > 0 else Color.WHITE
@@ -575,7 +590,7 @@ func flight_sprite(kind: String, pos: Vector2, frame: int = 0, tint: Color = Col
 	# Gameplay sprites were authored for the original small viewport. Give them
 	# deliberate screen presence in the larger 1280 x 720 presentation.
 	var source_size := Vector2(tex.get_width() / cells, tex.get_height())
-	var draw_size := source_size * 1.5
+	var draw_size: Vector2 = SPRITE_SIZE[kind]
 	draw_texture_rect_region(tex, Rect2((pos - draw_size * 0.5).round(), draw_size),
 			Rect2(Vector2(frame % cells * source_size.x, 0), source_size), tint)
 
@@ -586,24 +601,23 @@ func draw_powerup(kind: String, pos: Vector2) -> void:
 	var cell := Vector2(POWERUP_SHEET.get_width() / 2.0, POWERUP_SHEET.get_height() / 2.0)
 	var source := Rect2(Vector2((index % 2) * cell.x, floori(float(index) / 2.0) * cell.y), cell)
 	var size := Vector2(38, 38)
-	draw_circle(pos, 22, Color(0.12, 0.19, 0.28, 0.7))
+
 	draw_texture_rect_region(POWERUP_SHEET, Rect2(pos - size * 0.5, size), source)
 
 func label_at(words: String, pos: Vector2, size: int = 12, color: Color = PAPER) -> void:
 	draw_string(font, pos, words, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
 func hud_rect(rect: Rect2, color: Color) -> void:
-	draw_rect(Rect2(rect.position * 2.0, rect.size * 2.0), color)
+	draw_rect(rect, color)
 
 func hud_label(words: String, pos: Vector2, size: int = 12, color: Color = PAPER) -> void:
-	draw_string(font, pos * 2.0, words, HORIZONTAL_ALIGNMENT_LEFT, -1, size * 2, color)
+	draw_string(font, pos, words, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
 func _draw() -> void:
 	var phase: String = "hangar" if elapsed < 7.0 else ("overland" if elapsed < 68.0 else "orbit")
 	var backdrop: Texture2D = BACKDROPS[phase]
 	var offset := fposmod(elapsed * (24.0 if phase == "hangar" else 12.0), 1280.0)
-	draw_texture_rect_region(backdrop, Rect2(Vector2.ZERO, OUTPUT_SIZE), Rect2(Vector2(offset, 0), OUTPUT_SIZE))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(2, 2))
+	draw_texture_rect_region(backdrop, Rect2(Vector2.ZERO, SIZE), Rect2(Vector2(offset, 0), OUTPUT_SIZE))
 	for item in pickups:
 		draw_powerup(item.kind, item.p.round())
 	for building in structures:
@@ -637,7 +651,7 @@ func _draw() -> void:
 	for p in sparks:
 		draw_rect(Rect2(p.p.round(), Vector2(2, 2)), p.color)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	draw_rect(Rect2(0, 0, OUTPUT_SIZE.x, 110), Color("0c1728"))
+	draw_rect(Rect2(0, 0, SIZE.x, 55), Color("0c1728"))
 	hud_label("UNFORTUNATE EVENTS", Vector2(12, 19), 13, CYAN)
 	if paused:
 		hud_label("PAUSED", Vector2(161, 18), 10, ORANGE)

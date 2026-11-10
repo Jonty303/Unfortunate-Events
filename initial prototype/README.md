@@ -31,8 +31,7 @@ Original synthesized arcade effects cover firing, damage, explosions, collection
 
 - `main.tscn`: entry scene.
 - `game.gd`: input, schedule, simulation, swept projectile collisions, rendering and UI.
-- `assets/flight/` holds the 30 × 16 Shuttle, its weapons and transparent effect strips. The flight renderer selects cells at native resolution. A five-pose strip banks the near wing with vertical movement.
-- `assets/hostiles/` holds the fighter, both tracked chassis, their articulated weapons and enemy ammunition.
+- `assets/hd/` contains the shuttle bank poses, hostile vehicles, articulated weapon mounts, ammunition, impact animations and destructible buildings. Their display sizes are defined in game units independently of texture resolution. The scene node maps the 640 × 360 simulation to the 1280 × 720 canvas.
 - `assets/backdrops/` holds high-resolution SVG backdrops for the hangar breakout, planetary flight and orbital view, plus the 2 × 2 transparent power-up sprite sheet.
 - The fighter fires pink pulses, the tank recoils as it fires amber shells, and the launcher elevates a loaded rail, releases its missile and lowers to reload. Ground buildings have destructible military and civilian variants.
 - `tests.gd`: executable checks, including rapid input and a full 80-second simulated sortie.

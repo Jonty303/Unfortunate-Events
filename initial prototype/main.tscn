@@ -3,4 +3,5 @@
 [ext_resource type="Script" path="res://game.gd" id="1"]
 
 [node name="UnfortunateEvents" type="Node2D"]
+scale = Vector2(2, 2)
 script = ExtResource("1")
