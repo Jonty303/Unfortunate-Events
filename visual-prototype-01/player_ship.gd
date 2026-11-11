@@ -19,6 +19,10 @@ var hit_time := 0.0
 var rocket_ready := true
 
 func reset_visuals() -> void:
+	engine_time = 0.0
+	thrust = 1.0
+	manoeuvre = Vector2.ZERO
+	rocket_ready = true
 	recoil = 0.0
 	muzzle_time = 0.0
 	hit_time = 0.0

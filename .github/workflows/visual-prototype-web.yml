@@ -38,11 +38,14 @@ jobs:
           test -s build/web/index.wasm
           test -s build/web/index.pck
       - name: Render scale comparison frames
+        timeout-minutes: 3
         run: |
           set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y xvfb libgl1-mesa-dri
-          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a "$HOME/.local/bin/godot-4.5.2" --path . --rendering-method gl_compatibility --script res://tests/render_capture.gd 2>&1 | tee build/logs/render.log
+          if ! command -v xvfb-run >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y xvfb libgl1-mesa-dri
+          fi
+          LIBGL_ALWAYS_SOFTWARE=1 timeout 90s xvfb-run -a "$HOME/.local/bin/godot-4.5.2" --path . --audio-driver Dummy --rendering-method gl_compatibility --script res://tests/render_capture.gd 2>&1 | tee build/logs/render.log
           if grep -E '(^|[[:space:]])(SCRIPT ERROR:|ERROR:)|Parse Error|Failed to load script' build/logs/render.log; then
             exit 1
           fi

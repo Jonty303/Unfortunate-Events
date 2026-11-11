@@ -186,10 +186,17 @@ func _notification(what: int) -> void:
 			touch_controls.release_all()
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Native Control buttons need an explicit touch path because mouse emulation
+	# is disabled to prevent a joystick finger also firing the cannon.
+	if event is InputEventScreenTouch and event.pressed and not event.canceled:
+		if debug_layers and scale_button.get_global_rect().has_point(event.position):
+			cycle_scale()
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventJoypadButton and event.pressed:
 		if event.button_index == JOY_BUTTON_START:
 			toggle_pause()
-		elif event.button_index == JOY_BUTTON_Y and paused:
+		elif event.button_index == JOY_BUTTON_Y and (paused or destroyed):
 			reset_test()
 
 func control_axis() -> Vector2:
@@ -537,7 +544,7 @@ func _draw() -> void:
 		draw_circle(debris["p"] - Vector2(travel, 0), 2.4 + alpha * 3, tint)
 	if debug_layers:
 		draw_line(Vector2(0, GROUND), Vector2(W, GROUND), Color(1.0, 0.9, 0.25, 0.65), 2)
-		draw_rect(Rect2(112, 82, W - 224, GROUND - 82), Color(CYAN, 0.22), false, 2)
+		draw_rect(Rect2(24, 116, W - 52, GROUND - 126), Color(CYAN, 0.22), false, 2)
 		var ship_box := player_box()
 		ship_box.position.x -= travel
 		draw_rect(ship_box, Color(CYAN, 0.7), false, 2)

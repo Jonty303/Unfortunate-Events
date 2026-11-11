@@ -143,6 +143,22 @@ func run_tests() -> void:
 	check(game.ship.thrust >= 1, "Backward screen movement retains cruise exhaust")
 	game.cycle_scale()
 	check(is_equal_approx(game.object_scale, 0.75) and game.travel == 0 and game.hull == 5, "Scale comparison restarts identical encounter")
+	game.debug_layers = true
+	game.update_labels()
+	var touch := InputEventScreenTouch.new()
+	touch.index = 40
+	touch.pressed = true
+	touch.position = game.scale_button.get_global_rect().get_center()
+	game._unhandled_input(touch)
+	check(is_equal_approx(game.object_scale, 1.0), "Scale review button accepts real touch without mouse emulation")
+	check(game.rounds.is_empty() and game.touch_controls.movement == Vector2.ZERO, "Scale touch does not fire or retain movement")
+	game.damage_player(5, game.player)
+	var restart := InputEventJoypadButton.new()
+	restart.button_index = JOY_BUTTON_Y
+	restart.pressed = true
+	game._unhandled_input(restart)
+	check(game.hull == 5 and not game.destroyed, "Controller restart works after destruction")
+	check(game.ship.engine_time == 0 and is_equal_approx(game.ship.thrust, 1.0), "Restart resets engine presentation")
 	game.free()
 	if failures.is_empty():
 		print("COMBAT TESTS PASSED: %d checks" % checks)
