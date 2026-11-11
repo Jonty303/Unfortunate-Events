@@ -79,13 +79,13 @@ func advance_ground(game: Node2D, obj: Dictionary, safe: bool, dt: float) -> voi
 		obj["aim"] = rotate_toward(float(obj["aim"]), desired, dt * 1.6)
 		if obj["timer"] <= 0:
 			obj["state"] = "warn"
-			obj["timer"] = 0.75
+			obj["timer"] = 0.75 * float(game.tuning_values["warning_time"])
 	elif state == "warn":
-		obj["warning"] = 1.0 - float(obj["timer"]) / 0.75
+		obj["warning"] = 1.0 - float(obj["timer"]) / (0.75 * float(game.tuning_values["warning_time"]))
 		if obj["timer"] <= 0:
 			shoot(game, obj)
 			obj["state"] = "reload"
-			obj["timer"] = 2.8 if kind == "tank" else 3.8
+			obj["timer"] = (2.8 if kind == "tank" else 3.8) * float(game.tuning_values["enemy_reload"])
 			obj["warning"] = 0.0
 	elif state == "reload":
 		if kind == "launcher":
@@ -96,7 +96,7 @@ func advance_ground(game: Node2D, obj: Dictionary, safe: bool, dt: float) -> voi
 
 func advance_air(game: Node2D, obj: Dictionary, sx: float, safe: bool, dt: float) -> void:
 	var state: String = obj.get("state", "enter")
-	var scroll: float = game.BASE_SCROLL * game.speed_options[game.speed_index]
+	var scroll: float = game.scroll_velocity()
 	obj["x"] += scroll * dt
 	if float(obj["age"]) > 10.0:
 		obj["state"] = "exit"
@@ -115,9 +115,9 @@ func advance_air(game: Node2D, obj: Dictionary, sx: float, safe: bool, dt: float
 		obj["timer"] = 0.8
 	elif state == "settle" and obj["timer"] <= 0:
 		obj["state"] = "warn"
-		obj["timer"] = 0.8
+		obj["timer"] = 0.8 * float(game.tuning_values["warning_time"])
 	elif state == "warn":
-		obj["warning"] = 1.0 - float(obj["timer"]) / 0.8
+		obj["warning"] = 1.0 - float(obj["timer"]) / (0.8 * float(game.tuning_values["warning_time"]))
 		if obj["timer"] <= 0:
 			obj["state"] = "burst"
 			obj["burst"] = 3
@@ -128,19 +128,19 @@ func advance_air(game: Node2D, obj: Dictionary, sx: float, safe: bool, dt: float
 		obj["timer"] = 0.22
 		if obj["burst"] <= 0:
 			obj["state"] = "reload"
-			obj["timer"] = 1.6
+			obj["timer"] = 1.6 * float(game.tuning_values["enemy_reload"])
 	elif state == "reload" and obj["timer"] <= 0:
 		obj["state"] = "settle"
 		obj["timer"] = 0.3
 
 func shoot(game: Node2D, obj: Dictionary) -> void:
-	if game.rounds.size() >= 128 or obj["dead"]: return
+	if not game.tuning_values["enemy_fire"] or game.rounds.size() >= 128 or obj["dead"]: return
 	var origin := Art.muzzle_world(obj, game.GROUND, game.object_scale)
 	var kind: String = obj["kind"]
 	var missile := kind == "launcher"
 	var direction := Vector2.LEFT if kind == "interceptor" else Vector2.RIGHT.rotated(float(obj["aim"]))
 	var speed := 460.0 if kind == "interceptor" else (370.0 if missile else 440.0)
-	game.rounds.append({"p": origin, "v": direction * speed, "friendly": false, "missile": missile, "damage": 1,
+	game.rounds.append({"p": origin, "v": direction * speed * float(game.tuning_values["enemy_shot_speed"]), "friendly": false, "missile": missile, "damage": 1,
 		"age": 0.0, "trail": 0.0, "enemy_rocket": missile, "source": kind})
 	obj["muzzle_flash"] = 0.09
 	obj["recoil"] = 7.0

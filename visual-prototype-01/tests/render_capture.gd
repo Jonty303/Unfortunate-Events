@@ -52,8 +52,15 @@ func capture() -> void:
 	game.update_chunks(0.25)
 	game._process(0)
 	if not await save_frame("01c-wreckage"): return
+	game.player_scale = 0.75
+	game.sync_ship()
+	game.tuning_ui.open_panel(game.current_tuning())
+	for page in game.Tuning.GROUPS.size():
+		game.tuning_ui.group = page
+		game.tuning_ui.queue_redraw()
+		if not await save_frame("01d-tuning-" + game.Tuning.GROUPS[page].to_lower()): return
 	game.free()
-	print("RENDER CAPTURES PASSED: 4 real engine frames")
+	print("RENDER CAPTURES PASSED: 9 real engine frames")
 	quit(0)
 
 func save_frame(name: String) -> bool:

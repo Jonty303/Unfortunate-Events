@@ -32,6 +32,10 @@ run_checked encounter-tests --headless --path "$ROOT" --script res://tests/encou
 if ! grep -F 'ENCOUNTER TESTS PASSED' "$ROOT/build/logs/encounter-tests.log" >/dev/null; then
   echo "The encounter test suite did not reach its success marker." >&2; exit 1
 fi
+run_checked tuning-tests --headless --path "$ROOT" --script res://tests/tuning_smoke.gd
+if ! grep -F 'TUNING TESTS PASSED' "$ROOT/build/logs/tuning-tests.log" >/dev/null; then
+  echo "The tuning test suite did not reach its success marker." >&2; exit 1
+fi
 run_checked export --headless --path "$ROOT" --export-release Web "$ROOT/build/web/index.html"
 [[ -s "$ROOT/build/web/index.html" && -s "$ROOT/build/web/index.wasm" && -s "$ROOT/build/web/index.pck" ]] || {
   echo "Export did not create all required browser files." >&2; exit 1;

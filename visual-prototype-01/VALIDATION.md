@@ -1,3 +1,7 @@
+# 01D additions
+
+Tuning adds a dedicated runtime suite and five panel render captures. Device-specific persistence, ergonomics and performance still require iPad testing. See `ITERATION_01D.md`.
+
 # Current verification scope: 01C
 
 Run `bash tools/export_web.sh` for touch, combat, encounter and Web-export checks. The current CI also renders four actual frames. Historical validation below describes the original package, not the latest commit. iPad Safari/Edge audio, multitouch and device performance still require manual testing.

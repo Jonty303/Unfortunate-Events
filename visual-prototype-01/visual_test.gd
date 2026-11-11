@@ -1,5 +1,5 @@
 extends Node2D
-## Visual Prototype 01C: independent player scale, telegraphed enemies, wreckage and encounter flow.
+## Visual Prototype 01D: touch-native bounded tuning; retains the 01C encounter and artwork.
 ## 1920x1080 authored space; consistent world coordinates for road targets and projectiles.
 const W := 1920.0
 const H := 1080.0
@@ -15,6 +15,8 @@ const ShipPresentation = preload("res://player_ship.gd")
 const EnemyArt = preload("res://enemy_art.gd")
 const Director = preload("res://enemy_director.gd")
 const CombatAudio = preload("res://combat_audio.gd")
+const Tuning = preload("res://debug_tuning.gd")
+const TuningPanel = preload("res://tuning_panel.gd")
 const Geometry = preload("res://combat_geometry.gd")
 const SCALE_OPTIONS := [1.0, 0.85, 0.75]
 const MAX_HULL := 5
@@ -69,6 +71,10 @@ var sfx: CombatAudio
 var sound_button: Button
 var complete := false
 var chunks: Array[Dictionary] = []
+var tuning_values := Tuning.defaults()
+var tuning_ui: TuningPanel
+var paused_before_tuning := false
+var block_weapon_input := false
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -100,7 +106,7 @@ func _ready() -> void:
 	touch_controls.debug_requested.connect(toggle_debug)
 	touch_controls.speed_requested.connect(cycle_speed)
 	scale_button = Button.new()
-	scale_button.position = Vector2(1220, 190)
+	scale_button.position = Vector2(1220, 215)
 	scale_button.size = Vector2(236, 60)
 	scale_button.focus_mode = Control.FOCUS_NONE
 	scale_button.add_theme_font_size_override("font_size", 23)
@@ -113,7 +119,82 @@ func _ready() -> void:
 	sound_button.add_theme_font_size_override("font_size", 22)
 	sound_button.pressed.connect(toggle_sound)
 	hud.add_child(sound_button)
+	label_status.size = Vector2(1260, 44)
+	label_status.clip_text = true
+	var tuning_layer := CanvasLayer.new()
+	tuning_layer.layer = 40
+	add_child(tuning_layer)
+	tuning_ui = TuningPanel.new()
+	tuning_ui.source_values = current_tuning
+	tuning_layer.add_child(tuning_ui)
+	tuning_ui.opened.connect(begin_tuning)
+	tuning_ui.finished.connect(finish_tuning)
 	reset_test()
+
+func current_tuning() -> Dictionary:
+	var values := tuning_values.duplicate()
+	values["player_scale"] = player_scale
+	values["object_scale"] = object_scale
+	values["hitboxes"] = debug_layers
+	values["scroll_speed"] = scroll_velocity()
+	return values
+
+func scroll_velocity() -> float:
+	return float(tuning_values["scroll_speed"]) * speed_options[speed_index]
+
+func begin_tuning() -> void:
+	paused_before_tuning = paused
+	paused = true
+	touch_controls.release_all()
+	touch_controls.set_game_paused(true)
+	touch_controls.set_process_input(false)
+	sfx.stop_all()
+
+func finish_tuning(values: Dictionary, apply_changes: bool, restart: bool) -> void:
+	if apply_changes:
+		apply_tuning(values)
+	if restart:
+		reset_test()
+	else:
+		paused = paused_before_tuning
+	touch_controls.set_process_input(true)
+	touch_controls.release_all()
+	touch_controls.set_game_paused(paused or destroyed or complete)
+	# Physical buttons may still be held when the panel closes. Require release
+	# before accepting a fresh weapon press, without altering global input state.
+	block_weapon_input = true
+	update_labels()
+
+func apply_tuning(values: Dictionary) -> void:
+	tuning_values = Tuning.sanitise(values)
+	player_scale = tuning_values["player_scale"]
+	object_scale = tuning_values["object_scale"]
+	debug_layers = tuning_values["hitboxes"]
+	speed_index = 0
+	cannon_cooldown = minf(cannon_cooldown, 1.0 / float(tuning_values["cannon_rate"]))
+	missile_cooldown = minf(missile_cooldown, tuning_values["rocket_reload"])
+	if not tuning_values["enemy_fire"]:
+		for i in range(rounds.size() - 1, -1, -1):
+			if not rounds[i]["friendly"]: rounds.remove_at(i)
+	# Restart enemy windups after a tuning change; never resume a half-hidden shot.
+	for obj in targets:
+		if not obj["dead"] and obj["kind"] in ["tank", "launcher", "interceptor"]:
+			if obj.get("state", "") not in ["enter", "exit"]:
+				obj["state"] = "settle" if obj["kind"] == "interceptor" else "wait"
+				obj["timer"] = 0.8
+				obj["loaded"] = true
+			obj["warning"] = 0.0
+	sync_ship()
+	clamp_player()
+	previous_player_world = Vector2(travel + player.x, player.y)
+	print("TUNING APPLIED: ", JSON.stringify(current_tuning(), "", true))
+
+func weapon_buttons_held() -> bool:
+	return (Input.is_key_pressed(KEY_Z) or Input.is_key_pressed(KEY_SPACE)
+		or Input.is_key_pressed(KEY_X) or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+		or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or pad_pressed(JOY_BUTTON_A)
+		or pad_pressed(JOY_BUTTON_B) or pad_pressed(JOY_BUTTON_RIGHT_SHOULDER)
+		or touch_controls.fire_held or touch_controls.rocket_held)
 
 func add_plane(texture: Texture2D, fraction: float, y: float, z: int) -> void:
 	var plane := Layer.new()
@@ -166,6 +247,7 @@ func reset_test() -> void:
 	update_labels()
 
 func _unhandled_key_input(event: InputEvent) -> void:
+	if tuning_ui.panel_open: return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
 			KEY_P, KEY_ESCAPE:
@@ -209,11 +291,13 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
 		if is_instance_valid(touch_controls):
 			paused = true
+			if is_instance_valid(tuning_ui) and tuning_ui.panel_open: paused_before_tuning = true
 			touch_controls.set_game_paused(true)
 			touch_controls.release_all()
 			if is_instance_valid(sfx): sfx.stop_all()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if tuning_ui.panel_open: return
 	# Native Control buttons need an explicit touch path because mouse emulation
 	# is disabled to prevent a joystick finger also firing the cannon.
 	if event is InputEventScreenTouch and event.pressed and not event.canceled:
@@ -278,7 +362,7 @@ func player_box() -> Rect2:
 func _process(delta: float) -> void:
 	if not paused:
 		# Bounded substeps keep arcs and cooldowns consistent through ordinary frame drops.
-		var remaining := minf(delta, 0.25)
+		var remaining := minf(delta, 0.25) * float(tuning_values["simulation_speed"])
 		while remaining > 0.000001:
 			var dt := minf(remaining, 1.0 / 120.0)
 			if not destroyed and not complete:
@@ -295,20 +379,21 @@ func _process(delta: float) -> void:
 func step_combat(dt: float) -> void:
 	previous_player_world = Vector2(travel + player.x, player.y)
 	mission_time += dt
-	travel += BASE_SCROLL * speed_options[speed_index] * dt
+	travel += scroll_velocity() * dt
 	var axis := control_axis()
-	player += axis * PLAYER_SPEED * dt
+	player += axis * float(tuning_values["player_speed"]) * dt
 	invulnerable = maxf(0.0, invulnerable - dt)
 	cannon_cooldown = maxf(0.0, cannon_cooldown - dt)
 	missile_cooldown = maxf(0.0, missile_cooldown - dt)
 	ship.advance(dt, axis, missile_cooldown <= 0)
 	clamp_player()
-	var mouse_allowed: bool = not touch_controls.blocks_mouse_fire()
+	if block_weapon_input and not weapon_buttons_held(): block_weapon_input = false
+	var mouse_allowed: bool = not touch_controls.blocks_mouse_fire() and not TuningPanel.LAUNCH.has_point(get_global_mouse_position())
 	if (scale_button.visible and scale_button.get_global_rect().has_point(get_global_mouse_position())) or sound_button.get_global_rect().has_point(get_global_mouse_position()):
 		mouse_allowed = false
-	if Input.is_key_pressed(KEY_Z) or Input.is_key_pressed(KEY_SPACE) or (mouse_allowed and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)) or pad_pressed(JOY_BUTTON_A) or touch_controls.fire_held:
+	if not block_weapon_input and (Input.is_key_pressed(KEY_Z) or Input.is_key_pressed(KEY_SPACE) or (mouse_allowed and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)) or pad_pressed(JOY_BUTTON_A) or touch_controls.fire_held):
 		fire_cannon()
-	if Input.is_key_pressed(KEY_X) or (mouse_allowed and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)) or pad_pressed(JOY_BUTTON_B) or pad_pressed(JOY_BUTTON_RIGHT_SHOULDER) or touch_controls.rocket_held:
+	if not block_weapon_input and (Input.is_key_pressed(KEY_X) or (mouse_allowed and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)) or pad_pressed(JOY_BUTTON_B) or pad_pressed(JOY_BUTTON_RIGHT_SHOULDER) or touch_controls.rocket_held):
 		fire_missile()
 	director.advance(self, dt)
 	update_rounds(dt)
@@ -343,20 +428,20 @@ func step_combat(dt: float) -> void:
 func fire_cannon() -> void:
 	if paused or destroyed or complete or cannon_cooldown > 0 or rounds.size() >= 128:
 		return
-	cannon_cooldown = CANNON_PERIOD
+	cannon_cooldown = 1.0 / float(tuning_values["cannon_rate"])
 	ship.fire()
 	sfx.play_effect("cannon")
 	var origin: Vector2 = ship.muzzle_point() + Vector2(travel, 0)
-	var velocity: Vector2 = ship.muzzle_direction() * 1250.0 + Vector2(BASE_SCROLL * speed_options[speed_index], 0)
-	rounds.append({"p": origin, "v": velocity, "friendly": true, "missile": false, "damage": 1, "age": 0.0})
+	var velocity: Vector2 = ship.muzzle_direction() * float(tuning_values["cannon_speed"]) + Vector2(scroll_velocity(), 0)
+	rounds.append({"p": origin, "v": velocity, "friendly": true, "missile": false, "damage": roundi(tuning_values["cannon_damage"]), "age": 0.0})
 
 func fire_missile() -> void:
 	if paused or destroyed or complete or missile_cooldown > 0 or rounds.size() >= 128:
 		return
-	missile_cooldown = MISSILE_PERIOD
+	missile_cooldown = tuning_values["rocket_reload"]
 	ship.rocket_ready = false
-	var scrolling: float = BASE_SCROLL * speed_options[speed_index]
-	rounds.append({"p": ship.rocket_point() + Vector2(travel, 0), "v": Vector2(scrolling + 150.0, 70), "cruise": scrolling + 675.0, "friendly": true, "missile": true, "damage": 3, "age": 0.0, "trail": 0.0})
+	var scrolling: float = scroll_velocity()
+	rounds.append({"p": ship.rocket_point() + Vector2(travel, 0), "v": Vector2(scrolling + 150.0, 70), "cruise": scrolling + float(tuning_values["rocket_speed"]), "friendly": true, "missile": true, "damage": 3, "age": 0.0, "trail": 0.0})
 
 func target_box(obj: Dictionary) -> Rect2:
 	var local_box := Rect2(-350, -500, 700, 500)
@@ -394,7 +479,7 @@ func update_rounds(dt: float) -> void:
 				sfx.play_effect("rocket")
 				velocity.x = shot.get("cruise", 820.0)
 				velocity.y = maxf(velocity.y, 172.0)
-			velocity.y += 380.0 * dt
+			velocity.y += float(tuning_values["rocket_gravity"]) * dt
 			shot["trail"] = float(shot.get("trail", 0.0)) - dt
 			if shot["age"] >= 0.12 and shot["trail"] <= 0:
 				shot["trail"] = 0.04
@@ -470,15 +555,15 @@ func detonate(at: Vector2) -> void:
 		if obj["dead"] or obj["kind"] == "hangar":
 			continue
 		var distance: float = Geometry.distance_to_box(at, target_box(obj))
-		damage_target(obj, Geometry.blast_damage(distance, BLAST_RADIUS), at)
+		damage_target(obj, Geometry.blast_damage(distance, tuning_values["blast_radius"]), at)
 	spawn_sparks(at, ORANGE, 24)
-	blasts.append({"p": at, "age": 0.0, "radius": BLAST_RADIUS})
+	blasts.append({"p": at, "age": 0.0, "radius": tuning_values["blast_radius"]})
 	add_smoke(at, Vector2(0, -35), 0.8, 13.0)
 	if blasts.size() > 32:
 		blasts = blasts.slice(blasts.size() - 32)
 
 func damage_player(amount: int, at: Vector2) -> void:
-	if destroyed or complete or invulnerable > 0 or amount <= 0:
+	if destroyed or complete or tuning_values["invincible"] or invulnerable > 0 or amount <= 0:
 		return
 	hull = maxi(0, hull - amount)
 	invulnerable = 0.85
@@ -589,7 +674,9 @@ func render_chunks() -> void:
 	draw_set_transform(Vector2.ZERO)
 
 func render_round(shot: Dictionary) -> void:
-	var tip: Vector2 = shot["p"] - Vector2(travel, 0)
+	var screen_tip: Vector2 = shot["p"] - Vector2(travel, 0)
+	draw_set_transform(screen_tip, 0.0, Vector2.ONE * float(tuning_values["projectile_size"]))
+	var tip := Vector2.ZERO
 	var vel: Vector2 = shot["v"]
 	if shot["missile"]:
 		var direction := vel.normalized()
@@ -609,6 +696,8 @@ func render_round(shot: Dictionary) -> void:
 		draw_line(tip - vel.normalized() * 45, tip, Color(1.0, 0.18, 0.12, 0.3), 14)
 		draw_line(tip - vel.normalized() * 29, tip, Color("ff7254"), 5)
 		draw_circle(tip, 5, Color("ffddaa"))
+
+	draw_set_transform(Vector2.ZERO)
 
 func _draw() -> void:
 	for obj in targets:
@@ -644,14 +733,16 @@ func _draw() -> void:
 				draw_rect(box, Color(1.0, 0.85, 0.18, 0.8), false, 2)
 
 func update_labels() -> void:
-	label_status.text = "UNFORTUNATE EVENTS / 01C  |  HULL %d/%d  |  ROCKET %s  |  %s  |  %d/%d" % [hull, MAX_HULL, "READY" if missile_cooldown <= 0 else "RELOAD", director.phase(mission_time), kills, Director.SCHEDULE.size()]
+	label_status.text = "UNFORTUNATE EVENTS / 01D  |  HULL %d/%d  |  ROCKET %s  |  %s  |  %d/%d" % [hull, MAX_HULL, "READY" if missile_cooldown <= 0 else "RELOAD", director.phase(mission_time), kills, Director.SCHEDULE.size()]
 	if destroyed:
 		label_status.text = "HULL LOST  /  TAP RESTART OR PRESS R TO RETRY"
 	elif complete:
-		label_status.text = "01C ENCOUNTER COMPLETE  /  %d OF %d DESTROYED  /  TAP RESTART" % [kills, Director.SCHEDULE.size()]
+		label_status.text = "01D ENCOUNTER COMPLETE  /  %d OF %d DESTROYED  /  TAP RESTART" % [kills, Director.SCHEDULE.size()]
 	elif paused:
 		label_status.text += "  [PAUSED]"
-	label_help.text = "WASD / STICK MOVE   Z / A FIRE   X / B ROCKET   P PAUSE   R RESTART   F1 DEBUG   F3 SHIP SIZE   M SOUND"
+	if tuning_values["invincible"]: label_status.text = "[INVULNERABLE]  " + label_status.text
+	if not tuning_values["enemy_fire"]: label_status.text = "[ENEMY FIRE OFF]  " + label_status.text
+	label_help.text = "WASD / STICK MOVE   Z / A FIRE   X / B ROCKET   P PAUSE   R RESTART   F1 DEBUG   F3 SHIP SIZE   F4 TUNING   M SOUND"
 	label_help.visible = not touch_controls.controls_visible()
 	label_debug.position = Vector2(1150, 95)
 	label_debug.visible = debug_layers
@@ -659,4 +750,4 @@ func update_labels() -> void:
 	scale_button.text = "SHIP %d%% / RESTART" % roundi(player_scale * 100.0)
 	sound_button.text = "SOUND " + ("OFF" if sfx.muted else "ON")
 	if debug_layers:
-		label_debug.text = "SHIP %d%% | WORLD OBJECTS %d%% | %.1fs\nSCROLL %.1fx | BULLETS %d | DEBRIS %d\nHITBOXES / MUZZLE | NO HOMING" % [roundi(player_scale * 100), roundi(object_scale * 100), mission_time, speed_options[speed_index], rounds.size(), chunks.size()]
+		label_debug.text = "SHIP %d%% | OBJECTS %d%% | %.1fs\nMOVE %.0f | SCROLL %.0f px/s | SIM %.2fx\nCANNON %.2f/s | BULLETS %d | FPS %d\nHITBOXES / MUZZLE | F4 TUNING" % [roundi(player_scale * 100), roundi(object_scale * 100), mission_time, tuning_values["player_speed"], scroll_velocity(), tuning_values["simulation_speed"], tuning_values["cannon_rate"], rounds.size(), Engine.get_frames_per_second()]

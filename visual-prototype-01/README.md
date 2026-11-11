@@ -1,6 +1,6 @@
-# Current iteration: 01C
+# Current iteration: 01D - debug tuning
 
-See [ITERATION_01C.md](ITERATION_01C.md). The shuttle now defaults to 75%; enemies/world objects stay at 85%. Includes a 64-second encounter, animated enemy weapons, wreckage and optional audio. Build and serve commands below are unchanged.
+Open **TUNING / F4** for touch-native, bounded flight and combat settings. See [ITERATION_01D.md](ITERATION_01D.md) for controls, save/load behaviour and the next-pass proposal. Original encounter: [ITERATION_01C.md](ITERATION_01C.md). The shuttle now defaults to 75%; enemies/world objects stay at 85%. Includes a 64-second encounter, animated enemy weapons, wreckage and optional audio. Build and serve commands below are unchanged.
 
 # Unfortunate Events - Visual Prototype 01
 
