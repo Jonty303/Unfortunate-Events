@@ -1,0 +1,24 @@
+name: Tuning source workbench
+on:
+  push:
+    branches: [visual-prototype-01]
+    paths: ['.github/workflows/tuning-workbench.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Record source revision
+        run: git rev-parse HEAD > SOURCE_COMMIT.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ue-tuning-source
+          path: |
+            visual-prototype-01/
+            .github/workflows/visual-prototype-web.yml
+            SOURCE_COMMIT.txt
+          include-hidden-files: true
+          retention-days: 1
