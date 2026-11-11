@@ -1,0 +1,30 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://player_ship.gd" id="1"]
+
+[node name="AntiqueShuttle" type="Node2D"]
+z_index = 5
+script = ExtResource("1")
+
+[node name="Cannon" type="Node2D" parent="."]
+position = Vector2(70, 32)
+
+[node name="Barrel" type="Node2D" parent="Cannon"]
+
+[node name="Muzzle" type="Marker2D" parent="Cannon/Barrel"]
+position = Vector2(58, 0)
+
+[node name="RocketRail" type="Marker2D" parent="."]
+position = Vector2(8, 57)
+
+[node name="EngineUpper" type="Marker2D" parent="."]
+position = Vector2(-106, 6)
+
+[node name="EngineLower" type="Marker2D" parent="."]
+position = Vector2(-108, 28)
+
+[node name="UpperThruster" type="Marker2D" parent="."]
+position = Vector2(30, -28)
+
+[node name="LowerThruster" type="Marker2D" parent="."]
+position = Vector2(38, 46)

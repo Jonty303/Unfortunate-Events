@@ -25,7 +25,7 @@ jobs:
           python3 -m py_compile tools/serve_web.py
       - name: Install pinned Godot and Web templates
         run: bash tools/install_godot.sh
-      - name: Import, touch tests and Web export
+      - name: Import, touch and combat tests, Web export
         run: bash tools/export_web.sh
       - name: Headless scene smoke test
         run: |
@@ -37,3 +37,27 @@ jobs:
           test -s build/web/index.html
           test -s build/web/index.wasm
           test -s build/web/index.pck
+      - name: Render scale comparison frames
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1-mesa-dri
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a "$HOME/.local/bin/godot-4.5.2" --path . --rendering-method gl_compatibility --script res://tests/render_capture.gd 2>&1 | tee build/logs/render.log
+          if grep -E '(^|[[:space:]])(SCRIPT ERROR:|ERROR:)|Parse Error|Failed to load script' build/logs/render.log; then
+            exit 1
+          fi
+          grep -F 'RENDER CAPTURES PASSED' build/logs/render.log
+          test -s build/previews/01b-strafe-85.png
+          test -s build/previews/01b-strafe-100.png
+          test -s build/previews/01b-strafe-75.png
+          test -s build/previews/01b-cruise-85.png
+      - name: Save verification logs and rendered frames
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: visual-prototype-01b-review
+          path: |
+            visual-prototype-01/build/logs/
+            visual-prototype-01/build/previews/
+          if-no-files-found: warn
+          retention-days: 14
