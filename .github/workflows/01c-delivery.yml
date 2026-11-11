@@ -1,0 +1,99 @@
+name: Validate and deliver Visual Prototype 01C
+on:
+  push:
+    branches: [visual-prototype-01]
+    paths: ['.github/workflows/01c-delivery.yml']
+permissions:
+  contents: write
+jobs:
+  deliver:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Assemble checksum-verified source patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/visual-prototype-01
+          : > /tmp/01c.tar.xz
+          for sha in 7d804b0579a38d4104e87a25abba2970d34e2653 8ba86427aff6bf2a4d6258eb27deaa684a171712 af766040f70132c270c6e4cecaafff1708a87990 3238e33629f997aa43a7f472dcf96fc48496fdbe cc49813edd7b4b01613d60b9a4c8bd4cd48fb6ce; do
+            gh api "repos/$GITHUB_REPOSITORY/git/blobs/$sha" --jq .content | base64 --decode >> /tmp/01c.tar.xz
+          done
+          echo 'c7325b22a3ed9cf9dc5c8a9ffacccae99bb52217465e6ddfae15ad39a10f74ba  /tmp/01c.tar.xz' | sha256sum --check
+          python3 - <<'PY'
+          import pathlib, tarfile
+          root = pathlib.Path.cwd()
+          names = []
+          with tarfile.open('/tmp/01c.tar.xz', 'r:xz') as archive:
+              for member in archive.getmembers():
+                  p = pathlib.PurePosixPath(member.name)
+                  if not member.isfile() or p.is_absolute() or '..' in p.parts:
+                      raise SystemExit('Unsafe patch entry')
+                  if not (member.name.startswith('visual-prototype-01/') or member.name == '.github/workflows/visual-prototype-web.yml'):
+                      raise SystemExit('Patch entry outside approved prototype scope')
+                  dest = root / member.name
+                  dest.parent.mkdir(parents=True, exist_ok=True)
+                  dest.write_bytes(archive.extractfile(member).read())
+                  dest.chmod(member.mode & 0o777)
+                  names.append(member.name)
+          for name in ('.github/workflows/01c-workbench.yml', '.github/workflows/01c-delivery.yml'):
+              (root / name).unlink()
+              names.append(name)
+          pathlib.Path('/tmp/01c-paths.txt').write_text('\n'.join(names) + '\n')
+          print('Applied', len(names) - 2, 'verified source files; removed temporary delivery workflows.')
+          PY
+      - name: Verify source package and tooling
+        working-directory: visual-prototype-01
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum --check MANIFEST.sha256
+          bash -n tools/install_godot.sh tools/export_web.sh
+          python3 -m py_compile tools/serve_web.py
+      - name: Install pinned Godot and Web templates
+        working-directory: visual-prototype-01
+        run: bash tools/install_godot.sh
+      - name: Import, touch, combat and encounter checks, Web export
+        working-directory: visual-prototype-01
+        run: bash tools/export_web.sh
+      - name: Smoke test and real-renderer captures
+        working-directory: visual-prototype-01
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$HOME/.local/bin/godot-4.5.2" --headless --path . --quit-after 240 2>&1 | tee build/logs/scene-smoke.log
+          if grep -E '(^|[[:space:]])(SCRIPT ERROR:|ERROR:)|Parse Error|Failed to load script' build/logs/scene-smoke.log; then exit 1; fi
+          if ! command -v xvfb-run >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y xvfb libgl1-mesa-dri
+          fi
+          LIBGL_ALWAYS_SOFTWARE=1 timeout 90s xvfb-run -a "$HOME/.local/bin/godot-4.5.2" --path . --audio-driver Dummy --rendering-method gl_compatibility --script res://tests/render_capture.gd 2>&1 | tee build/logs/render.log
+          if grep -E '(^|[[:space:]])(SCRIPT ERROR:|ERROR:)|Parse Error|Failed to load script' build/logs/render.log; then exit 1; fi
+          grep -F 'RENDER CAPTURES PASSED' build/logs/render.log
+          for frame in 01c-combat-75 01c-combat-85 01c-strafe 01c-wreckage; do test -s "build/previews/$frame.png"; done
+          for ext in html wasm pck; do test -s "build/web/index.$ext"; done
+          sha256sum --check MANIFEST.sha256
+      - name: Commit only verified prototype files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --pathspec-from-file=/tmp/01c-paths.txt
+          git diff --cached --check
+          git commit -m 'feat: visual prototype 01C smaller shuttle, readable enemies and persistent wrecks' -m 'Separate player scale from world objects. Add a paced 64-second encounter, interceptor bursts, telegraphed tank and launcher animations, world-anchored wreckage and original switchable sound effects. Include modular prototype art and 166 passing automated checks, Web export and real renderer capture validation. Remove one-time workbench/delivery workflows.'
+          git push origin HEAD:refs/heads/visual-prototype-01
+          git rev-parse HEAD
+      - name: Preserve test logs and real engine captures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: visual-prototype-01c-review
+          path: |
+            visual-prototype-01/build/logs/
+            visual-prototype-01/build/previews/
+          retention-days: 14
+          if-no-files-found: warn
