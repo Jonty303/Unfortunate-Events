@@ -1,0 +1,89 @@
+name: Validate and deliver prototype tuning
+on:
+  push:
+    branches: [visual-prototype-01]
+    paths: ['.github/workflows/tuning-delivery.yml']
+permissions:
+  contents: write
+jobs:
+  deliver:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Assemble verified source patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/visual-prototype-01
+          echo '37354a485d0500b0fad9f4ea75ccb24cd1d310ccdc61ace3cf996026e76d3165  visual-prototype-01/MANIFEST.sha256' | sha256sum --check
+          (cd visual-prototype-01 && sha256sum --check MANIFEST.sha256)
+          : > /tmp/tuning.tar.xz
+          for sha in c22d3691774b3a3049c192baa0117241c8cdcbcb 22810242070338ce5558120e90ca66f2927fb052 1f457acaa790a75d2b08b9a0d99b61f2657aa8ca fd7d20d2d0d844f68bb20a81035b4ce652f550e1; do
+            gh api "repos/$GITHUB_REPOSITORY/git/blobs/$sha" --jq .content | base64 --decode >> /tmp/tuning.tar.xz
+          done
+          echo '4ef8d745545d39e45ff17ffdfaa8b4b169dff7252722530f1af33aba55eb8edd  /tmp/tuning.tar.xz' | sha256sum --check
+          python3 - <<'PY'
+          import pathlib, tarfile
+          root = pathlib.Path.cwd()
+          names = []
+          with tarfile.open('/tmp/tuning.tar.xz', 'r:xz') as archive:
+              for member in archive.getmembers():
+                  p = pathlib.PurePosixPath(member.name)
+                  if not member.isfile() or p.is_absolute() or '..' in p.parts or not member.name.startswith('visual-prototype-01/'):
+                      raise SystemExit('Patch entry outside approved prototype scope')
+                  dest = root / member.name
+                  dest.parent.mkdir(parents=True, exist_ok=True)
+                  dest.write_bytes(archive.extractfile(member).read())
+                  dest.chmod(member.mode & 0o777)
+                  names.append(member.name)
+          pathlib.Path('/tmp/tuning-paths.txt').write_text('\n'.join(names) + '\n')
+          print('Applied', len(names), 'checksum-verified source files.')
+          PY
+      - name: Verify source and tooling
+        working-directory: visual-prototype-01
+        run: |
+          sha256sum --check MANIFEST.sha256
+          bash -n tools/install_godot.sh tools/export_web.sh
+          python3 -m py_compile tools/serve_web.py
+      - name: Install Godot and Web templates
+        working-directory: visual-prototype-01
+        run: bash tools/install_godot.sh
+      - name: Runtime regressions and Web export
+        working-directory: visual-prototype-01
+        run: bash tools/export_web.sh
+      - name: Scene smoke and rendered panel review
+        working-directory: visual-prototype-01
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$HOME/.local/bin/godot-4.5.2" --headless --path . --quit-after 120 2>&1 | tee build/logs/scene-smoke.log
+          if grep -E '(^|[[:space:]])(SCRIPT ERROR:|ERROR:)|Parse Error|Failed to load script' build/logs/scene-smoke.log; then exit 1; fi
+          LIBGL_ALWAYS_SOFTWARE=1 timeout 90s xvfb-run -a "$HOME/.local/bin/godot-4.5.2" --path . --audio-driver Dummy --rendering-method gl_compatibility --script res://tests/render_capture.gd 2>&1 | tee build/logs/render.log
+          if grep -E '(^|[[:space:]])(SCRIPT ERROR:|ERROR:)|Parse Error|Failed to load script' build/logs/render.log; then exit 1; fi
+          grep -F 'RENDER CAPTURES PASSED: 9' build/logs/render.log
+          for page in flight cannon rockets opposition inspection; do test -s "build/previews/01d-tuning-$page.png"; done
+          sha256sum --check MANIFEST.sha256
+      - name: Commit only verified prototype source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --pathspec-from-file=/tmp/tuning-paths.txt
+          git diff --cached --check
+          git commit -m 'feat: 01D touch-native flight and combat tuning panel' -m 'Expose 19 bounded debug controls with staged apply, local preset save/load, independent scales, weapon and enemy timing controls, inspection helpers and safe touch input. Preserve 01C defaults. Add 120 tuning regressions and five panel captures, plus the proposed environment/effects next pass.'
+          git push origin HEAD:refs/heads/visual-prototype-01
+          git rev-parse HEAD
+      - name: Preserve logs and real renderer captures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: visual-prototype-01d-review
+          path: |
+            visual-prototype-01/build/logs/
+            visual-prototype-01/build/previews/
+          retention-days: 14
+          if-no-files-found: warn
