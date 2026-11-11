@@ -55,8 +55,12 @@ The **terrain renderer** supplies the visible road/surface baseline and future t
 9. Space, capital-scale and Culture-vessel art follow the same material/light/contrast language but are not required for this milestone.
 10. Do not approve or mass-produce production art until a real Godot run and visual review.
 
-## Prototype package status
+## Prototype delivery and verification — 11 November 2026
 
-A **separate local experimental Godot package** has been assembled containing `visual_test.gd`, `parallax_layer.gd`, `main.tscn`, `project.godot` and 11 cut-out PNG textures, plus a composited preview. These raster assets are **temporary proof-of-pipeline material extracted from earlier generated concepts**, **not** clean production art. Their alpha/tiling and environment reuse still require a dedicated paint pass.
+The complete Touch + Web source project is now committed to **`visual-prototype-01/` on branch `visual-prototype-01`**. It includes `project.godot`, scenes, renderer/game scripts, the optional touchscreen overlay, all 11 original PNG assets, preview, Web export preset, touch tests, and install/build/serve scripts. No separate ZIP upload or external artwork service is required to clone, build or run the committed project.
 
-The local package has not been run through a Godot executable in this environment. As the GitHub integration currently writes UTF-8 text files but does not accept local container files as binary uploads, the package must be imported into the repository by a separate binary-capable route before claiming the code/assets are committed. This branch records the accepted architecture and quality gates; it intentionally does not replace the original working prototype.
+The artwork was transferred byte-for-byte from the previously supplied package and verified by SHA-256. These raster assets remain **temporary proof-of-pipeline material extracted from earlier generated concepts**, **not** approved production art. Alpha edges, tiling and environment reuse still require a dedicated art pass. The original playable prototype, `main` and `milestone-01` are unchanged by this delivery.
+
+**Runtime verification:** GitHub Actions run [43016524539](https://github.com/Jonty303/Unfortunate-Events/actions/runs/43016524539) passed on code commit `d390855ba268b058f859df739c4701a20721caa7` using Godot `4.5.2.stable.official.6ce3de25a`. The run verified source checksums, installed matching export templates, imported the project, passed the 27-check touch suite, exported the Web build, and passed a short headless scene smoke test. The initial export configuration failure was corrected by enabling mobile ETC2/ASTC imports; both desktop and mobile Web export targets remain enabled.
+
+Automated tests do **not** establish real iPad/Safari multitouch, browser loading, visual quality or performance. Those remain device-test and art-review gates. See [`../visual-prototype-01/CODESPACES.md`](../visual-prototype-01/CODESPACES.md) for the Git-based setup and test commands.
