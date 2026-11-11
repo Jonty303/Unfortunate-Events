@@ -25,7 +25,7 @@ jobs:
           python3 -m py_compile tools/serve_web.py
       - name: Install pinned Godot and Web templates
         run: bash tools/install_godot.sh
-      - name: Import, touch, combat and encounter tests, Web export
+      - name: Import, touch, combat, encounter and tuning tests, Web export
         run: bash tools/export_web.sh
       - name: Headless scene smoke test
         run: |
@@ -37,7 +37,7 @@ jobs:
           test -s build/web/index.html
           test -s build/web/index.wasm
           test -s build/web/index.pck
-      - name: Render combat and destruction frames
+      - name: Render gameplay and tuning-panel frames
         timeout-minutes: 3
         run: |
           set -euo pipefail
@@ -54,11 +54,14 @@ jobs:
           test -s build/previews/01c-combat-85.png
           test -s build/previews/01c-strafe.png
           test -s build/previews/01c-wreckage.png
+          for page in flight cannon rockets opposition inspection; do
+            test -s "build/previews/01d-tuning-$page.png"
+          done
       - name: Save verification logs and rendered frames
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: visual-prototype-01c-review
+          name: visual-prototype-01d-review
           path: |
             visual-prototype-01/build/logs/
             visual-prototype-01/build/previews/
