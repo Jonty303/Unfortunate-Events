@@ -32,18 +32,17 @@ jobs:
                   p = pathlib.PurePosixPath(member.name)
                   if not member.isfile() or p.is_absolute() or '..' in p.parts:
                       raise SystemExit('Unsafe patch entry')
-                  if not (member.name.startswith('visual-prototype-01/') or member.name == '.github/workflows/visual-prototype-web.yml'):
+                  if member.name == '.github/workflows/visual-prototype-web.yml':
+                      continue
+                  if not member.name.startswith('visual-prototype-01/'):
                       raise SystemExit('Patch entry outside approved prototype scope')
                   dest = root / member.name
                   dest.parent.mkdir(parents=True, exist_ok=True)
                   dest.write_bytes(archive.extractfile(member).read())
                   dest.chmod(member.mode & 0o777)
                   names.append(member.name)
-          for name in ('.github/workflows/01c-workbench.yml', '.github/workflows/01c-delivery.yml'):
-              (root / name).unlink()
-              names.append(name)
           pathlib.Path('/tmp/01c-paths.txt').write_text('\n'.join(names) + '\n')
-          print('Applied', len(names) - 2, 'verified source files; removed temporary delivery workflows.')
+          print('Applied', len(names), 'verified prototype source files. No workflow changes are staged by this bot.')
           PY
       - name: Verify source package and tooling
         working-directory: visual-prototype-01
@@ -76,7 +75,7 @@ jobs:
           for frame in 01c-combat-75 01c-combat-85 01c-strafe 01c-wreckage; do test -s "build/previews/$frame.png"; done
           for ext in html wasm pck; do test -s "build/web/index.$ext"; done
           sha256sum --check MANIFEST.sha256
-      - name: Commit only verified prototype files
+      - name: Commit only verified prototype source files
         shell: bash
         run: |
           set -euo pipefail
@@ -84,7 +83,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add --pathspec-from-file=/tmp/01c-paths.txt
           git diff --cached --check
-          git commit -m 'feat: visual prototype 01C smaller shuttle, readable enemies and persistent wrecks' -m 'Separate player scale from world objects. Add a paced 64-second encounter, interceptor bursts, telegraphed tank and launcher animations, world-anchored wreckage and original switchable sound effects. Include modular prototype art and 166 passing automated checks, Web export and real renderer capture validation. Remove one-time workbench/delivery workflows.'
+          git commit -m 'feat: visual prototype 01C smaller shuttle, readable enemies and persistent wrecks' -m 'Separate player scale from world objects. Add a paced 64-second encounter, interceptor bursts, telegraphed tank and launcher animations, world-anchored wreckage and original switchable sound effects. Include modular prototype art and 166 passing automated checks, Web export and real renderer capture validation.'
           git push origin HEAD:refs/heads/visual-prototype-01
           git rev-parse HEAD
       - name: Preserve test logs and real engine captures
