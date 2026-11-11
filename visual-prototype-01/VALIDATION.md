@@ -1,3 +1,7 @@
+# Current verification scope: 01C
+
+Run `bash tools/export_web.sh` for touch, combat, encounter and Web-export checks. The current CI also renders four actual frames. Historical validation below describes the original package, not the latest commit. iPad Safari/Edge audio, multitouch and device performance still require manual testing.
+
 # Validation record - repository delivery
 
 Prepared 11 November 2026. Source: the previously supplied `Unfortunate_Events_Visual_Prototype_01_Touch_Web.zip`.

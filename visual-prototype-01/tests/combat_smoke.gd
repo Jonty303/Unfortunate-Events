@@ -39,10 +39,10 @@ func run_tests() -> void:
 	game.set_process(false)
 	game.touch_controls.save_preferences = false
 	game.touch_controls.set_mode(Overlay.TouchMode.ON)
-	check(is_equal_approx(game.object_scale, 0.85), "Default actors use 85 percent scale")
+	check(is_equal_approx(game.object_scale, 0.85), "Ground objects retain 85 percent scale")
 	var original_touch: Vector2 = game.touch_controls.STICK_CENTRE
 	for factor in [1.0, 0.85, 0.75]:
-		game.object_scale = factor
+		game.player_scale = factor
 		game.reset_test()
 		game.player.y = 9999
 		game.clamp_player()
@@ -71,7 +71,7 @@ func run_tests() -> void:
 			var relative_velocity: Vector2 = game.rounds[0]["v"] - Vector2(game.BASE_SCROLL * game.speed_options[game.speed_index], 0)
 			check(relative_velocity.normalized().is_equal_approx(game.ship.muzzle_direction()), "Muzzle and projectile heading agree after banking/scaling")
 
-	game.object_scale = 0.85
+	game.player_scale = 0.75
 	game.reset_test()
 	game.targets.assign([dummy("tank", 900), dummy("tank", 700)])
 	var y: float = game.target_box(game.targets[1]).get_center().y
@@ -142,7 +142,7 @@ func run_tests() -> void:
 	game.ship.advance(0.1, Vector2.LEFT, true)
 	check(game.ship.thrust >= 1, "Backward screen movement retains cruise exhaust")
 	game.cycle_scale()
-	check(is_equal_approx(game.object_scale, 0.75) and game.travel == 0 and game.hull == 5, "Scale comparison restarts identical encounter")
+	check(is_equal_approx(game.player_scale, 1.0) and game.travel == 0 and game.hull == 5, "Scale comparison restarts identical encounter")
 	game.debug_layers = true
 	game.update_labels()
 	var touch := InputEventScreenTouch.new()
@@ -150,7 +150,7 @@ func run_tests() -> void:
 	touch.pressed = true
 	touch.position = game.scale_button.get_global_rect().get_center()
 	game._unhandled_input(touch)
-	check(is_equal_approx(game.object_scale, 1.0), "Scale review button accepts real touch without mouse emulation")
+	check(is_equal_approx(game.player_scale, 0.85), "Scale review button accepts real touch without mouse emulation")
 	check(game.rounds.is_empty() and game.touch_controls.movement == Vector2.ZERO, "Scale touch does not fire or retain movement")
 	game.damage_player(5, game.player)
 	var restart := InputEventJoypadButton.new()

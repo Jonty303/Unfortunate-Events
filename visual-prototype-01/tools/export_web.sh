@@ -3,6 +3,9 @@
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 GODOT="${GODOT_BIN:-$HOME/.local/bin/godot-4.5.2}"
+if [[ -z "${GODOT_BIN:-}" && ! -x "$GODOT" && -x "$HOME/.local/bin/godot" ]]; then
+  GODOT="$HOME/.local/bin/godot"
+fi
 [[ -x "$GODOT" ]] || { echo "Godot missing. Run: bash tools/install_godot.sh" >&2; exit 1; }
 VERSION="$("$GODOT" --headless --version)"
 [[ "$VERSION" == 4.5.2.stable* ]] || { echo "Expected Godot 4.5.2 with matching templates, got: $VERSION" >&2; exit 1; }
@@ -24,6 +27,10 @@ fi
 run_checked combat-tests --headless --path "$ROOT" --script res://tests/combat_smoke.gd
 if ! grep -F 'COMBAT TESTS PASSED' "$ROOT/build/logs/combat-tests.log" >/dev/null; then
   echo "The combat test suite did not reach its success marker." >&2; exit 1
+fi
+run_checked encounter-tests --headless --path "$ROOT" --script res://tests/encounter_smoke.gd
+if ! grep -F 'ENCOUNTER TESTS PASSED' "$ROOT/build/logs/encounter-tests.log" >/dev/null; then
+  echo "The encounter test suite did not reach its success marker." >&2; exit 1
 fi
 run_checked export --headless --path "$ROOT" --export-release Web "$ROOT/build/web/index.html"
 [[ -s "$ROOT/build/web/index.html" && -s "$ROOT/build/web/index.wasm" && -s "$ROOT/build/web/index.pck" ]] || {

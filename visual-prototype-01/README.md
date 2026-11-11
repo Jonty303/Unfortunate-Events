@@ -1,3 +1,7 @@
+# Current iteration: 01C
+
+See [ITERATION_01C.md](ITERATION_01C.md). The shuttle now defaults to 75%; enemies/world objects stay at 85%. Includes a 64-second encounter, animated enemy weapons, wreckage and optional audio. Build and serve commands below are unchanged.
+
 # Unfortunate Events - Visual Prototype 01
 
 The complete Touch + Web source project lives in this directory on branch `visual-prototype-01`. Clone or pull the branch; no separate artwork ZIP is required. The original `initial prototype` and `milestone-01` work are unchanged.
