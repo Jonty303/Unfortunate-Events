@@ -1,0 +1,39 @@
+name: Visual Prototype Web Check
+on:
+  push:
+    branches: [visual-prototype-01]
+    paths:
+      - 'visual-prototype-01/**'
+      - '.github/workflows/visual-prototype-web.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: visual-prototype-01
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Verify complete source package
+        run: |
+          sha256sum --check MANIFEST.sha256
+          bash -n tools/install_godot.sh tools/export_web.sh
+          python3 -m py_compile tools/serve_web.py
+      - name: Install pinned Godot and Web templates
+        run: bash tools/install_godot.sh
+      - name: Import, touch tests and Web export
+        run: bash tools/export_web.sh
+      - name: Headless scene smoke test
+        run: |
+          set -euo pipefail
+          "$HOME/.local/bin/godot-4.5.2" --headless --path . --quit-after 120 2>&1 | tee build/logs/scene-smoke.log
+          if grep -E '(^|[[:space:]])(SCRIPT ERROR:|ERROR:)|Parse Error|Failed to load script' build/logs/scene-smoke.log; then
+            exit 1
+          fi
+          test -s build/web/index.html
+          test -s build/web/index.wasm
+          test -s build/web/index.pck
